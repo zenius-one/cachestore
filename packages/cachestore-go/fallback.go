@@ -4,8 +4,6 @@ import (
 	"context"
 	"sync"
 	"time"
-
-	"github.com/redis/go-redis/v9"
 )
 
 // FallbackOptions configures a Fallback.
@@ -46,16 +44,6 @@ func NewFallback(primary, secondary CacheStore, opts FallbackOptions) *Fallback 
 		opts.Now = time.Now
 	}
 	return &Fallback{primary: primary, secondary: secondary, opts: opts}
-}
-
-// New returns the CacheStore to use: a Redis-backed Fallback over a MemoryStore when client is
-// non-nil, otherwise the MemoryStore alone. prefix namespaces the Redis keys.
-func New(client redis.Cmdable, prefix string, mem MemoryOptions) CacheStore {
-	m := NewMemoryStore(mem)
-	if client == nil {
-		return m
-	}
-	return NewFallback(NewRedisStore(client, prefix), m, FallbackOptions{})
 }
 
 // usePrimary reports whether the primary should be tried now.

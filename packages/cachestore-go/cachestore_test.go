@@ -5,9 +5,6 @@ import (
 	"errors"
 	"testing"
 	"time"
-
-	"github.com/alicebob/miniredis/v2"
-	"github.com/redis/go-redis/v9"
 )
 
 var ctx = context.Background()
@@ -69,17 +66,6 @@ func TestMemoryStoreContract(t *testing.T) {
 	contract(t, "memory", s, func(d time.Duration) { now = now.Add(d) })
 }
 
-func TestRedisStoreContract(t *testing.T) {
-	mr := miniredis.RunT(t)
-	s := NewRedisStore(redis.NewClient(&redis.Options{Addr: mr.Addr()}), "t:")
-	contract(t, "redis", s, func(d time.Duration) { mr.FastForward(d) })
-
-	_ = s.Set(ctx, "scoped", []byte("v"), time.Minute)
-	if !mr.Exists("t:scoped") {
-		t.Fatal("key was not stored under the prefix")
-	}
-}
-
 func TestMemoryStoreIsBoundedAndCopies(t *testing.T) {
 	s := NewMemoryStore(MemoryOptions{MaxEntries: 3})
 	for _, k := range []string{"a", "b", "c", "d", "e"} {
@@ -99,55 +85,6 @@ func TestMemoryStoreIsBoundedAndCopies(t *testing.T) {
 	}
 }
 
-func TestFallbackDegradesAndRecovers(t *testing.T) {
-	mr := miniredis.RunT(t)
-	addr := mr.Addr()
-	now := time.Now()
-	clock := func() time.Time { return now }
-	var degraded, recovered int
-	f := NewFallback(
-		NewRedisStore(redis.NewClient(&redis.Options{Addr: addr, MaxRetries: -1, DialTimeout: 100 * time.Millisecond}), "f:"),
-		NewMemoryStore(MemoryOptions{Now: clock}),
-		FallbackOptions{Retry: 5 * time.Second, Now: clock, OnDegraded: func(error) { degraded++ }, OnRecovered: func() { recovered++ }},
-	)
-
-	if err := f.Set(ctx, "k", []byte("redis"), time.Minute); err != nil || f.Degraded() {
-		t.Fatalf("healthy set: %v degraded=%v", err, f.Degraded())
-	}
-
-	mr.Close()
-	// Redis is down: reads and writes keep working, from memory.
-	if err := f.Set(ctx, "k", []byte("mem"), time.Minute); err != nil {
-		t.Fatalf("set while down: %v", err)
-	}
-	if v, ok, err := f.Get(ctx, "k"); err != nil || !ok || string(v) != "mem" {
-		t.Fatalf("get while down = %q, %v, %v", v, ok, err)
-	}
-	if !f.Degraded() || degraded != 1 {
-		t.Fatalf("degraded=%v hooks=%d", f.Degraded(), degraded)
-	}
-	// Within the retry window the primary is not tried again (no extra transitions or dials).
-	_, _, _ = f.Get(ctx, "k")
-	if degraded != 1 {
-		t.Fatalf("degraded hook fired again: %d", degraded)
-	}
-
-	// Redis comes back (new instance, same address); after the window the primary is used again and
-	// the memory entry is no longer consulted.
-	mr2 := miniredis.NewMiniRedis()
-	if err := mr2.StartAddr(addr); err != nil {
-		t.Skipf("cannot rebind redis address: %v", err)
-	}
-	defer mr2.Close()
-	now = now.Add(6 * time.Second)
-	if _, ok, err := f.Get(ctx, "k"); err != nil || ok {
-		t.Fatalf("after recovery the memory entry must not be served: ok=%v err=%v", ok, err)
-	}
-	if f.Degraded() || recovered != 1 {
-		t.Fatalf("degraded=%v recovered=%d", f.Degraded(), recovered)
-	}
-}
-
 func TestFallbackDeleteClearsBothSides(t *testing.T) {
 	mem := NewMemoryStore(MemoryOptions{})
 	f := NewFallback(NewMemoryStore(MemoryOptions{}), mem, FallbackOptions{})
@@ -155,16 +92,6 @@ func TestFallbackDeleteClearsBothSides(t *testing.T) {
 	_ = f.Delete(ctx, "k")
 	if _, ok, _ := mem.Get(ctx, "k"); ok {
 		t.Fatal("secondary entry survived a delete")
-	}
-}
-
-func TestNewWithoutRedisIsMemory(t *testing.T) {
-	if _, ok := New(nil, "p:", MemoryOptions{}).(*MemoryStore); !ok {
-		t.Fatal("no Redis client must yield a plain MemoryStore")
-	}
-	mr := miniredis.RunT(t)
-	if _, ok := New(redis.NewClient(&redis.Options{Addr: mr.Addr()}), "p:", MemoryOptions{}).(*Fallback); !ok {
-		t.Fatal("a Redis client must yield a Fallback")
 	}
 }
 
@@ -180,5 +107,90 @@ func TestJSONHelpers(t *testing.T) {
 	_ = s.Set(ctx, "bad", []byte("not json"), time.Minute)
 	if _, ok, err := GetJSON[v](ctx, s, "bad"); ok || err != nil {
 		t.Fatalf("undecodable value must be a miss: ok=%v err=%v", ok, err)
+	}
+}
+
+// flaky is a CacheStore whose availability a test controls.
+type flaky struct {
+	*MemoryStore
+	down bool
+	hits int
+}
+
+func (f *flaky) check() error {
+	f.hits++
+	if f.down {
+		return errors.New("primary down")
+	}
+	return nil
+}
+
+func (f *flaky) Get(c context.Context, k string) ([]byte, bool, error) {
+	if err := f.check(); err != nil {
+		return nil, false, err
+	}
+	return f.MemoryStore.Get(c, k)
+}
+
+func (f *flaky) Set(c context.Context, k string, v []byte, ttl time.Duration) error {
+	if err := f.check(); err != nil {
+		return err
+	}
+	return f.MemoryStore.Set(c, k, v, ttl)
+}
+
+func (f *flaky) SetNX(c context.Context, k string, v []byte, ttl time.Duration) (bool, error) {
+	if err := f.check(); err != nil {
+		return false, err
+	}
+	return f.MemoryStore.SetNX(c, k, v, ttl)
+}
+
+func (f *flaky) Delete(c context.Context, keys ...string) error {
+	if err := f.check(); err != nil {
+		return err
+	}
+	return f.MemoryStore.Delete(c, keys...)
+}
+
+func TestFallbackDegradesAndRecovers(t *testing.T) {
+	now := time.Now()
+	clock := func() time.Time { return now }
+	primary := &flaky{MemoryStore: NewMemoryStore(MemoryOptions{Now: clock})}
+	var degraded, recovered int
+	f := NewFallback(primary, NewMemoryStore(MemoryOptions{Now: clock}),
+		FallbackOptions{Retry: 5 * time.Second, Now: clock, OnDegraded: func(error) { degraded++ }, OnRecovered: func() { recovered++ }})
+
+	if err := f.Set(ctx, "k", []byte("primary"), time.Minute); err != nil || f.Degraded() {
+		t.Fatalf("healthy set: %v degraded=%v", err, f.Degraded())
+	}
+
+	primary.down = true
+	// The primary is down: reads and writes keep working, from the secondary.
+	if err := f.Set(ctx, "k", []byte("secondary"), time.Minute); err != nil {
+		t.Fatalf("set while down: %v", err)
+	}
+	if v, ok, err := f.Get(ctx, "k"); err != nil || !ok || string(v) != "secondary" {
+		t.Fatalf("get while down = %q, %v, %v", v, ok, err)
+	}
+	if !f.Degraded() || degraded != 1 {
+		t.Fatalf("degraded=%v hooks=%d", f.Degraded(), degraded)
+	}
+	// Inside the retry window the primary is not tried again.
+	before := primary.hits
+	_, _, _ = f.Get(ctx, "k")
+	if primary.hits != before || degraded != 1 {
+		t.Fatalf("primary tried inside the window: hits %d->%d degraded hook %d", before, primary.hits, degraded)
+	}
+
+	// After the window, with the primary back, it is the source of truth again and the secondary
+	// entry is no longer served.
+	primary.down = false
+	now = now.Add(6 * time.Second)
+	if v, ok, err := f.Get(ctx, "k"); err != nil || !ok || string(v) != "primary" {
+		t.Fatalf("after recovery got %q, %v, %v; want the primary's value", v, ok, err)
+	}
+	if f.Degraded() || recovered != 1 {
+		t.Fatalf("degraded=%v recovered=%d", f.Degraded(), recovered)
 	}
 }

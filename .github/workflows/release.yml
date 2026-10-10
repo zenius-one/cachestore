@@ -27,9 +27,6 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
-    env:
-      # A published module must build on its own go.mod, as a consumer sees it.
-      GOWORK: "off"
     steps:
       - uses: actions/checkout@v5
         with:
@@ -71,7 +68,9 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          for gomod in packages/*/go.mod; do
+          # Core modules first, nested ones (packages/<dir>/<sub>) after: a nested module may only be
+          # pinned to a core tag that already exists.
+          for gomod in packages/*/go.mod packages/*/*/go.mod; do
             dir=$(dirname "$gomod")
             version=$(node -p "require('./$dir/package.json').version")
             if [ "$version" = "0.0.0" ]; then
@@ -83,6 +82,9 @@ jobs:
               echo "$tag already exists."
               continue
             fi
+            # A published module must build on its own go.mod, as a consumer sees it, not through
+            # the repository's go.work.
+            (cd "$dir" && GOWORK=off go build ./... && GOWORK=off go vet ./...)
             awk '/^## /{c++} c==1' "$dir/CHANGELOG.md" > /tmp/notes.md
             git tag -a "$tag" -m "Publish $dir@$version"
             git push origin "$tag"
