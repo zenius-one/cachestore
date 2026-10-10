@@ -10,7 +10,7 @@
     "test": "turbo run test",
     "changeset": "node .github/scripts/sync-changeset-ignore.mjs --write && changeset"
   },
-  "license": "UNLICENSED",
+  "license": "MIT",
   "packageManager": "pnpm@11.5.0",
   "engines": {
     "node": ">=24"
