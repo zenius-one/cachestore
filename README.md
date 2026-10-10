@@ -33,14 +33,13 @@ never "wrong" and never "unavailable".
 A pnpm + Turborepo + Changesets monorepo, one package per language under
 `packages/`, each independently versioned and released.
 
-```
-packages/cachestore-go/    Go core module (interface, MemoryStore, Fallback); its package.json is a
-                           version-tracking shim whose scripts (build, lint, check-types, test)
-                           call the Go toolchain so Turborepo runs it like any package
-packages/cachestore-go/redis/   Go module for the Redis store; depends on the core module
-.changeset/                pending changesets and config
-.github/workflows/         ci, changeset-checks, release
-```
+<!--prettier-ignore-->
+| Path | Description |
+|---|---|
+| packages/cachestore-go/ | Go core module (interface, MemoryStore, Fallback); its package.json is a version-tracking shim whose scripts (build, lint, check-types, test) call the Go toolchain so Turborepo runs it like any package |
+| packages/cachestore-go/redis/ | Go module for the Redis store; depends on the core module |
+| .changeset/ | Pending changesets and configuration |
+| .github/workflows/ | ci, changeset-checks and publish-packages workflows |
 
 - **Develop:** `pnpm install`, then `pnpm turbo run build lint check-types test`.
 - **Change a package:** `pnpm changeset` (a README-only change needs none).
