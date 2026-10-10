@@ -435,7 +435,7 @@ jobs:
         run: |
           set -uo pipefail
           # The proxy protocol escapes uppercase letters in a module path as !lowercase.
-          escaped=$(printf '%s' "$MODULE" | sed -E 's/[A-Z]/!\L&/g')
+          escaped=$(printf '%s' "$MODULE" | perl -pe 's/([A-Z])/"!".lc($1)/ge')
           url="https://proxy.golang.org/${escaped}/@v/${VERSION}.info"
           for attempt in 1 2 3 4 5; do
             code=$(curl -s -o /dev/null -w '%{http_code}' "$url")
