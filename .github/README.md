@@ -6,7 +6,7 @@ Changesets decides what changed, one workflow publishes it.
 | --- | --- | --- |
 | `ci.yml` | PRs only, except markdown-only changes | `turbo run build lint check-types test` |
 | `changeset-checks.yml` | PRs touching `packages/**` or `.changeset/**`, except READMEs | requires a changeset; checks the changeset ignore list and that no Go module shim was deleted or regressed |
-| `publish-packages.yml` | pushes to `main` touching `.changeset/**` or the publish configs; manual | version, then publish npm packages (GitHub Packages) and tag + release Go modules |
+| `publish-packages.yml` | pushes to `main` touching `.changeset/**` or the publish configs; manual | version, then publish npm packages (GitHub Packages) and tag + release Go modules, then ask the Go module proxy and pkg.go.dev to index each new version |
 
 ## How a Go module is released
 
