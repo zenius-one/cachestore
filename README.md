@@ -4,6 +4,7 @@ One cache abstraction for every Zenius service, in every language we write servi
 depends on the `CacheStore` interface, never on a map with a mutex or on Redis directly; the
 backing store is a deployment decision.
 
+<!--prettier-ignore-->
 | Language | Directory | Module / package | Status |
 | --- | --- | --- | --- |
 | Go | [`packages/cachestore-go`](packages/cachestore-go) | `github.com/zenius-one/cachestore/packages/cachestore-go` | implemented |
@@ -15,11 +16,11 @@ idiom, not in behaviour: a service moving between languages keeps its caching se
 
 ## Stores
 
-| Store | |
-| --- | --- |
-| `MemoryStore` | bounded, in-process (per replica); in the core module |
-| `Fallback` | composes any two stores: serves from the secondary while the primary fails; core module |
-| `RedisStore` | distributed, shared by every replica, keys under a prefix; **separate module** |
+| Store         |                                                                                         |
+| ------------- | --------------------------------------------------------------------------------------- |
+| `MemoryStore` | bounded, in-process (per replica); in the core module                                   |
+| `Fallback`    | composes any two stores: serves from the secondary while the primary fails; core module |
+| `RedisStore`  | distributed, shared by every replica, keys under a prefix; **separate module**          |
 
 Redis is a separate module on purpose: a service that never uses it never depends on a Redis
 client, so it never reaches that service's build or bundle. The Redis module's `New(redisClient,
@@ -43,12 +44,10 @@ packages/cachestore-go/redis/   Go module for the Redis store; depends on the co
 
 - **Develop:** `pnpm install`, then `pnpm turbo run build lint check-types test`.
 - **Change a package:** `pnpm changeset` (a README-only change needs none).
-- **Release:** merging to `main` runs `release.yml`: `changeset version` bumps and writes the
-  changelog, then every Go module whose committed version has no tag gets
+- **Release:** `publish-packages.yml` on `main`: `changeset version` bumps and writes the
+  changelog, then each module listed in `.github/publish-go-packages.config.json` gets
   `packages/<dir>/vX.Y.Z` (`packages/cachestore-go/redis/vX.Y.Z` for the nested module) and a
-  GitHub release; core modules are tagged before nested ones. Re-running the workflow recovers a failed run.
-  The tag is prefixed with the module's directory because that is how the Go toolchain resolves a
-  module that lives in a subdirectory.
+  GitHub release. `mode: reconcile` recovers a failed run. See [`.github/README.md`](.github/README.md).
 - **CI** ignores markdown-only changes.
 
 ## Adding a language

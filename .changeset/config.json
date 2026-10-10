@@ -10,7 +10,10 @@
     }
   ],
   "commit": false,
-  "ignore": ["cachestore"],
+  "ignore": [
+    "@zenius-one/cachestore-go-redis",
+    "cachestore"
+  ],
   "fixed": [],
   "linked": [],
   "updateInternalDependencies": "patch",

@@ -1,13 +1,32 @@
 name: Changeset Checks
 
-# A PR that touches a package must carry a changeset, otherwise it merges with no recorded bump and
-# the release workflow has nothing to do. README-only PRs are exempt and start no run.
+# Pre-merge gates for anything workflows/publish-packages.yml manages
+# (npm packages and Go module version-tracking shims alike — see
+# .github/README.md):
+#
+#   1. A PR touching a managed package must include a changeset
+#      (`pnpm changeset status --since`) — otherwise it merges with no
+#      recorded version bump and publish-packages.yml has nothing to do.
+#   2. .changeset/config.json's "ignore" list must match what
+#      publish-packages.config.json / publish-go-packages.config.json
+#      currently say is eligible — catches an include/exclude edit that
+#      forgot to also run `pnpm changeset` (which re-syncs it locally).
+#   3. No Go module's version-tracking shim may be deleted or have its
+#      version regress relative to the base branch — publish-packages.yml's
+#      reconcile mode (see .github/README.md) trusts the shim's committed
+#      version as the source of truth for "what should be published", so it
+#      has to be an append-only ledger.
+
 on:
   pull_request:
     types: [opened, edited, reopened, synchronize]
     paths:
       - "packages/**"
       - ".changeset/**"
+      - ".github/publish-packages.config.json"
+      - ".github/publish-go-packages.config.json"
+      # A README never needs a version bump. Negations must come after the patterns they carve out
+      # of, and a PR whose only matching files are READMEs then starts no run at all.
       - "!**/README.md"
 
 permissions:
@@ -17,14 +36,44 @@ jobs:
   checks:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - name: Checkout
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v5
+
+      - name: Setup pnpm
+        uses: pnpm/setup@v2
         with:
-          node-version: "24"
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: git fetch origin ${{ github.event.pull_request.base.ref }} --depth=1
-      - run: pnpm exec changeset status --since=origin/${{ github.event.pull_request.base.ref }}
+          # No `version:` here: package.json's "packageManager" already pins it, and
+          # specifying both trips ERR_PNPM_BAD_PM_VERSION.
+          runtime: node@24
+          cache: true
+          install: false # keep the explicit --frozen-lockfile install below
+
+      # Future @zenius-one/* npm packages published from OTHER repos in the org need NPM_TOKEN (an
+      # org-scoped PAT with read:packages): GITHUB_TOKEN is scoped to this repo only and 403s on
+      # them. Same .npmrc pattern as publish-packages.yml; harmless while there are none.
+      - name: Configure npm registry for @zenius-one scope
+        run: |
+          cat <<'EOF' >> .npmrc
+          @zenius-one:registry=https://npm.pkg.github.com
+          //npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}
+          EOF
+
+      - name: Install dependencies
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          PNPM_CONFIG_NPMRC_AUTH_FILE: ${{ github.workspace }}/.npmrc
+        run: pnpm install --frozen-lockfile
+
+      - name: Fetch base branch
+        run: git fetch origin ${{ github.event.pull_request.base.ref }} --depth=1
+
+      - name: Require a changeset for touched packages
+        run: pnpm exec changeset status --since=origin/${{ github.event.pull_request.base.ref }}
+
+      - name: Check .changeset/config.json ignore list is in sync
+        run: node .github/scripts/sync-changeset-ignore.mjs
+
+      - name: Check Go module shims weren't deleted or regressed
+        run: node .github/scripts/check-go-shim-integrity.mjs origin/${{ github.event.pull_request.base.ref }}

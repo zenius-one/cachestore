@@ -1,0 +1,7 @@
+{
+  "$schema": "./publish-go-packages.config.schema.json",
+  "include": [
+    "packages/cachestore-go"
+  ],
+  "exclude": []
+}
