@@ -59,10 +59,10 @@ A changeset triggers a real release: version bump, changelog, tag and GitHub rel
   this automatically, but only when a human runs it.
 - Verify: `pnpm exec changeset status --since=origin/main`.
 
-## Releasing the redis module for the first time
+## Changing the core module when redis depends on it
 
-It is deliberately unpublished until core `v0.1.0` is tagged. Then, as separate steps:
-
-1. `cd packages/cachestore-go/redis && GOWORK=off go get github.com/zenius-one/cachestore/packages/cachestore-go@v0.1.0`
-2. Add `packages/cachestore-go/redis` to `.github/publish-go-packages.config.json`.
-3. Add a changeset for `cachestore-go-redis`, and run the ignore sync.
+Release core first, then, as a follow-up change, pin the new core version in
+`packages/cachestore-go/redis` with
+`GOWORK=off go get github.com/zenius-one/cachestore/packages/cachestore-go@vX.Y.Z` and add a
+changeset for `cachestore-go-redis` if its behaviour or requirement changed. Never pin a version
+that has not been tagged.

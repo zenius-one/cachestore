@@ -55,5 +55,5 @@ Do not re-derive these; read them.
   `node .github/scripts/sync-changeset-ignore.mjs --write`.
 - **A cache error must never fail a request.** Treat `Get` errors as misses; never put a secret in
   a key (hash it).
-- The redis module's `go.mod` has no core requirement until core `v0.1.0` is tagged; see
-  commit-strategy before touching it.
+- The redis module pins a *released* core version; bump it deliberately after core releases (see
+  commit-strategy). Never pin a tag that does not exist.

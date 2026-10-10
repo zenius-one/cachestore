@@ -1,7 +1,8 @@
 {
   "$schema": "./publish-go-packages.config.schema.json",
   "include": [
-    "packages/cachestore-go"
+    "packages/cachestore-go",
+    "packages/cachestore-go/redis"
   ],
   "exclude": []
 }

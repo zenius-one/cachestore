@@ -34,10 +34,9 @@ missing from the registry or tags.
 - `publish-packages.config.json` (npm) and `publish-go-packages.config.json` (Go) are the only
   places that say what may be published; `.changeset/config.json`'s `ignore` list is generated
   from them (`pnpm changeset` re-syncs it, the checks workflow verifies it).
-- **`packages/cachestore-go/redis` is not listed yet.** Its `go.mod` has no requirement on the core
-  module until `packages/cachestore-go/v0.1.0` is tagged. Then: pin it with
-  `GOWORK=off go get github.com/zenius-one/cachestore/packages/cachestore-go@v0.1.0`, add the
-  module to `publish-go-packages.config.json`, and add a changeset.
+- A nested module (`packages/cachestore-go/redis`) requires a core tag that must already exist
+  when its publish job builds with `GOWORK=off`. Release core first; if both ship in one run and
+  the nested job loses the race, re-run with `mode: reconcile`.
 
 ## Repository settings this cannot apply itself
 
