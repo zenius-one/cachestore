@@ -4,7 +4,7 @@
 import "github.com/zenius-one/cachestore/packages/cachestore-go"
 ```
 
-Package `cachestore`. The behaviour contract is [`../SPEC.md`](../../SPEC.md).
+Package `cachestore`. The behaviour contract is [`SPEC.md`](../../SPEC.md).
 
 ```go
 // client may be nil (no Redis configured): you get the MemoryStore alone.
