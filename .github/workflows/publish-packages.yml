@@ -90,24 +90,7 @@ jobs:
           cache: true
           install: false # keep the explicit --frozen-lockfile install below
 
-      # The workspace depends on private @zenius-one/* packages published from
-      # OTHER repos in the org (e.g. @zenius-one/nexthis-ui, from
-      # zenius-one/nexthis) — secrets.GITHUB_TOKEN is scoped to this repo only
-      # and can't read those (403), regardless of `packages: read` permission
-      # here. NPM_TOKEN (an org-scoped PAT with read:packages, see
-      # apps/accounts-portal/Dockerfile for the same requirement in local/CI
-      # Docker builds) is required as a repo secret.
-      - name: Configure npm registry for @zenius-one scope
-        run: |
-          cat <<'EOF' >> .npmrc
-          @zenius-one:registry=https://npm.pkg.github.com
-          //npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}
-          EOF
-
       - name: Install dependencies
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          PNPM_CONFIG_NPMRC_AUTH_FILE: ${{ github.workspace }}/.npmrc
         run: pnpm install --frozen-lockfile
 
       - name: Check for pending changesets
@@ -150,14 +133,12 @@ jobs:
           git commit -m "chore: version packages [skip ci]"
           git push origin HEAD:${{ github.ref_name }}
 
-      # Recovery path — see the "Recovering a missed publish" comment at the
-      # top of this file. No changeset consumption here: the versions we're
-      # comparing against are whatever's already committed on this branch.
+      # Recovery path — see the "Recovering a missed publish" comment at the top of this file. No
+      # changeset consumption here: the versions compared are whatever is already committed.
       - name: Configure npm registry for reconcile lookups
         if: github.event.inputs.mode == 'reconcile'
         run: |
           cat <<'EOF' >> .npmrc
-          @zenius-one:registry=https://npm.pkg.github.com
           //npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}
           EOF
 
@@ -232,42 +213,17 @@ jobs:
           cache: true
           install: false # keep the explicit --frozen-lockfile install below
 
-      # `pnpm_config__auth` (tried previously) isn't a real pnpm config
-      # mechanism — no such env var key exists, so it silently applied no
-      # auth at all: [E401] authentication token not provided. pnpm's only
-      # actually-supported way to configure a scoped registry + its auth
-      # token is .npmrc. Written here (not committed) since
-      # actions/setup-node's registry-url/scope inputs aren't reliably
-      # picked up by `pnpm publish` (works for `npm publish`, not pnpm).
-      # This is a fresh, ephemeral checkout on the runner, never committed
-      # back, so writing over the repo's .npmrc here is safe.
-      # ${NODE_AUTH_TOKEN} is left literal (single-quoted heredoc) for pnpm
-      # to expand at read-time, per PNPM_CONFIG_NPMRC_AUTH_FILE below —
-      # pnpm 11.5.3+ otherwise stops expanding ${...} in a
-      # repository-controlled .npmrc (GHSA-3qhv-2rgh-x77r); safe here since
-      # this workflow only ever runs against this repo's own main branch
-      # (push-to-main or workflow_dispatch, never a PR/fork checkout).
-      #
-      # Must run BEFORE "Install dependencies" below, not just before
-      # "Publish" — the workspace lockfile also includes private
-      # @zenius-one/* packages published from OTHER repos in the org (e.g.
-      # @zenius-one/nexthis-ui, from zenius-one/nexthis), which `pnpm
-      # install` needs to fetch regardless of --filter.
-      - name: Configure npm registry for @zenius-one scope
+      # pnpm's only supported way to configure a registry auth token is .npmrc (actions/setup-node's
+      # registry-url input is not picked up by `pnpm publish`). Written here, never committed: this
+      # is an ephemeral checkout of this repo's own main branch. ${NODE_AUTH_TOKEN} stays literal
+      # for pnpm to expand at read time (PNPM_CONFIG_NPMRC_AUTH_FILE below).
+      - name: Configure npm registry auth
         run: |
           cat <<'EOF' >> .npmrc
-          @zenius-one:registry=https://npm.pkg.github.com
           //npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}
           EOF
 
-      # NPM_TOKEN (an org-scoped PAT with read:packages), not GITHUB_TOKEN:
-      # GITHUB_TOKEN is scoped to this repo only and 403s reading a package
-      # published from another repo in the org, regardless of the
-      # `packages: read` permission granted above.
       - name: Install dependencies
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          PNPM_CONFIG_NPMRC_AUTH_FILE: ${{ github.workspace }}/.npmrc
         run: pnpm install --frozen-lockfile
 
       - name: Build ${{ matrix.target.name }}
@@ -361,21 +317,6 @@ jobs:
         with:
           go-version-file: ${{ matrix.target.dir }}/go.mod
           cache-dependency-path: ${{ matrix.target.dir }}/go.sum
-
-      # This monorepo's Go modules would import each other as separate
-      # external modules, resolved against this same private repo, if any
-      # ever depended on another. Locally/Docker this works via
-      # Dockerfile's GOPRIVATE + SSH insteadOf rewrite; CI has neither by
-      # default, so `go build` tries an anonymous HTTPS `git ls-remote`
-      # and fails with "terminal prompts disabled". Fix: point Go at
-      # github.com over HTTPS using this workflow's own GITHUB_TOKEN
-      # (sufficient — the internal modules live in this same repo), and
-      # mark the org's modules private so Go skips the public
-      # proxy/sumdb for them.
-      - name: Configure Go for private module access
-        run: |
-          git config --global url."https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
-          echo "GOPRIVATE=github.com/zenius-one/*" >> "$GITHUB_ENV"
 
       - name: Build and vet ${{ matrix.target.module }}
         working-directory: ${{ matrix.target.dir }}

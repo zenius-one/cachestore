@@ -103,7 +103,7 @@ for (const pkg of workspacePackages) {
     // / publish-go-packages.config.json is that an app can never
     // accidentally end up publishable: it must be "private": true in its
     // own package.json. This applies whether or not the app also has a
-    // go.mod next to it (e.g. apps/nexthis) — an app's package.json is
+    // go.mod next to it (e.g. apps/example) — an app's package.json is
     // Changesets tracking, never a tag-worthy Go module shim, so it's
     // exempt from the packages/*-only shim rule below.
     if (pkg.private !== true) {

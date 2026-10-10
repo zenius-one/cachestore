@@ -50,20 +50,7 @@ jobs:
           cache: true
           install: false # keep the explicit --frozen-lockfile install below
 
-      # Future @zenius-one/* npm packages published from OTHER repos in the org need NPM_TOKEN (an
-      # org-scoped PAT with read:packages): GITHUB_TOKEN is scoped to this repo only and 403s on
-      # them. Same .npmrc pattern as publish-packages.yml; harmless while there are none.
-      - name: Configure npm registry for @zenius-one scope
-        run: |
-          cat <<'EOF' >> .npmrc
-          @zenius-one:registry=https://npm.pkg.github.com
-          //npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}
-          EOF
-
       - name: Install dependencies
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          PNPM_CONFIG_NPMRC_AUTH_FILE: ${{ github.workspace }}/.npmrc
         run: pnpm install --frozen-lockfile
 
       - name: Fetch base branch

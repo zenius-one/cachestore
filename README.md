@@ -1,6 +1,6 @@
 # cachestore
 
-One cache abstraction for every Zenius service, in every language we write services in. A service
+One cache abstraction for every service, in every language you write services in. A service
 depends on the `CacheStore` interface, never on a map with a mutex or on Redis directly; the
 backing store is a deployment decision.
 
@@ -9,7 +9,7 @@ backing store is a deployment decision.
 | --- | --- | --- | --- |
 | Go | [`packages/cachestore-go`](packages/cachestore-go) | `github.com/zenius-one/cachestore/packages/cachestore-go` | implemented |
 | Go, Redis store | [`packages/cachestore-go/redis`](packages/cachestore-go/redis) | `github.com/zenius-one/cachestore/packages/cachestore-go/redis` | implemented |
-| TypeScript | `packages/cachestore-ts` | `@zenius-one/cachestore` | planned |
+| TypeScript | `packages/cachestore-ts` | `cachestore` | planned |
 
 The contract every implementation follows is [`SPEC.md`](SPEC.md). Implementations differ in
 idiom, not in behaviour: a service moving between languages keeps its caching semantics.
@@ -30,7 +30,7 @@ never "wrong" and never "unavailable".
 
 ## Layout and releases
 
-A pnpm + Turborepo + Changesets monorepo, same shape as iam-360: one package per language under
+A pnpm + Turborepo + Changesets monorepo, one package per language under
 `packages/`, each independently versioned and released.
 
 ```

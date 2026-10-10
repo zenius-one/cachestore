@@ -11,8 +11,8 @@
   ],
   "commit": false,
   "ignore": [
-    "@zenius-one/cachestore-go-redis",
-    "cachestore"
+    "cachestore",
+    "cachestore-go-redis"
   ],
   "fixed": [],
   "linked": [],

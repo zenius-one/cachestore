@@ -1,6 +1,6 @@
 # CI and release
 
-Same structure as iam-360 and nexthis: Changesets decides what changed, one workflow publishes it.
+Changesets decides what changed, one workflow publishes it.
 
 | Workflow | Runs on | Does |
 | --- | --- | --- |

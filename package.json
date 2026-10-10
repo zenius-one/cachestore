@@ -1,7 +1,7 @@
 {
   "name": "cachestore",
   "version": "0.0.0",
-  "description": "One cache abstraction (CacheStore, MemoryStore, RedisStore, Redis-to-memory fallback) for every Zenius service, per language.",
+  "description": "One cache abstraction (CacheStore, MemoryStore, RedisStore, Redis-to-memory fallback) for any service, per language.",
   "private": true,
   "scripts": {
     "build": "turbo run build",

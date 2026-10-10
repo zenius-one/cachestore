@@ -20,7 +20,7 @@
     },
     "include": {
       "type": "array",
-      "description": "Glob patterns (matched against the workspace-relative package directory, e.g. \"packages/nexthis-sdk-next\") whose matching packages are eligible for publish. Supports '*' and '?' wildcards.",
+      "description": "Glob patterns (matched against the workspace-relative package directory, e.g. \"packages/example-sdk\") whose matching packages are eligible for publish. Supports '*' and '?' wildcards.",
       "items": {
         "type": "string"
       }
