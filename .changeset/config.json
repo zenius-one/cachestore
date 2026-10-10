@@ -11,8 +11,7 @@
   ],
   "commit": false,
   "ignore": [
-    "cachestore",
-    "cachestore-go-redis"
+    "cachestore"
   ],
   "fixed": [],
   "linked": [],

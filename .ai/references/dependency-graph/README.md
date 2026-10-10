@@ -28,8 +28,9 @@ SPEC.md
   how CI builds before tagging; it needs the required version to exist as a tag.
 - The core module must stay free of third-party dependencies: that is why Redis is a separate
   module. A change that adds a dependency to core is wrong, whatever the reason.
-- The redis module's `go.mod` omits the core requirement until `packages/cachestore-go/v0.1.0`
-  exists (Go will not resolve a required version that has no tag, even in a workspace).
+- The redis module's `go.mod` pins a released core version. Bump it deliberately (`GOWORK=off go
+  get .../packages/cachestore-go@vX.Y.Z`) after core releases a change redis needs; Go will not
+  resolve a required version that has no tag, even in a workspace.
 
 ## Release graph
 
@@ -39,7 +40,7 @@ published to npm) so Changesets can bump it and Turborepo can run its scripts.
 | Shim name | Module | Released when |
 | --- | --- | --- |
 | `cachestore-go` | core | listed in `.github/publish-go-packages.config.json` and bumped by a changeset |
-| `cachestore-go-redis` | redis | not yet listed; listed after core `v0.1.0` is tagged and pinned |
+| `cachestore-go-redis` | redis | listed in `.github/publish-go-packages.config.json` and bumped by a changeset |
 
 Tags are `packages/<dir>/vX.Y.Z` (`packages/cachestore-go/redis/vX.Y.Z` for the nested module):
 the Go toolchain resolves a module in a subdirectory by its directory-prefixed tag.
