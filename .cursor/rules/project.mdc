@@ -1,0 +1,24 @@
+---
+description: Project overview and always-on rules for the cachestore monorepo
+alwaysApply: true
+---
+
+# cachestore
+
+A pnpm + Turborepo + Changesets monorepo of cache-abstraction implementations, one package per
+language. `SPEC.md` is the behaviour contract.
+
+- Go core: `packages/cachestore-go` (no third-party dependencies, deliberately).
+- Go Redis store: `packages/cachestore-go/redis` (separate module).
+- Each Go module has a `package.json` shim for Changesets and Turborepo scripts; never published.
+
+Process is defined in `.ai/`; read it rather than guessing:
+
+- Committing and changesets: `.ai/skills/commit-strategy/SKILL.md`
+- Issues, branches and PRs: `.ai/skills/pr-strategy/SKILL.md`
+- What depends on what: `.ai/references/dependency-graph/README.md`
+
+Always: start behaviour changes in `SPEC.md`; keep the core module dependency-free; treat cache
+errors as misses; require a positive TTL; hash secrets before using them in keys; run
+`pnpm turbo run build lint check-types test`; one issue per PR with one `Closes #n`.
+Never: hand-edit `.changeset/config.json`'s `ignore` list, or push to `main`.

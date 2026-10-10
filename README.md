@@ -58,3 +58,7 @@ packages/cachestore-go/redis/   Go module for the Redis store; depends on the co
    cases listed there.
 3. Add its row above and, if it publishes somewhere other than a git tag, its publish step to
    `release.yml`.
+
+## Contributing
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md). Process for humans and AI assistants lives in [`.ai/`](.ai/README.md).
