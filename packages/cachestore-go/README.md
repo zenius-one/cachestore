@@ -1,10 +1,10 @@
 # cachestore (Go)
 
 ```go
-import "github.com/zenius-one/cachestore/go"
+import "github.com/zenius-one/cachestore/packages/cachestore-go"
 ```
 
-Package `cachestore`. The behaviour contract is [`../SPEC.md`](../SPEC.md).
+Package `cachestore`. The behaviour contract is [`../SPEC.md`](../../SPEC.md).
 
 ```go
 // client may be nil (no Redis configured): you get the MemoryStore alone.
@@ -37,8 +37,9 @@ f := cachestore.NewFallback(
 ## Development
 
 ```sh
-cd go
-go vet ./... && go test ./...
+go vet ./... && go test -race ./...
+# or, from the repo root:
+pnpm turbo run build lint check-types test
 ```
 
 Redis is faked with `miniredis`; no external services are needed.

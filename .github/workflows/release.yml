@@ -1,0 +1,90 @@
+name: Release
+
+# Changesets-driven, single stage (same shape as iam-360's publish-packages.yml, without npm):
+#   1. `changeset version` consumes pending changesets, bumping each package.json version and
+#      writing its CHANGELOG.md; the bump is committed straight to main.
+#   2. Every Go module whose committed version has no tag yet gets `packages/<dir>/vX.Y.Z` and a
+#      GitHub release carrying that version's changelog section.
+# Step 2 looks at committed versions rather than at what step 1 just did, so a failed run is
+# recovered by simply running this workflow again (workflow_dispatch): it only tags what is missing.
+#
+# Requires main's branch protection to allow github-actions[bot] to push.
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".changeset/**"
+      - ".github/workflows/release.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      # A published module must build on its own go.mod, as a consumer sees it.
+      GOWORK: "off"
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: pnpm
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: packages/cachestore-go/go.mod
+          cache-dependency-path: packages/cachestore-go/go.sum
+      - run: pnpm install --frozen-lockfile
+
+      - name: Version packages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if ls .changeset/*.md 2>/dev/null | grep -qv README.md; then
+            pnpm exec changeset version
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add -A
+            git commit -m "chore: version packages [skip ci]"
+            git push origin HEAD:main
+          else
+            echo "No pending changesets."
+          fi
+
+      - name: Test before tagging
+        run: pnpm turbo run build lint check-types test
+
+      - name: Tag and release Go modules
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          for gomod in packages/*/go.mod; do
+            dir=$(dirname "$gomod")
+            version=$(node -p "require('./$dir/package.json').version")
+            if [ "$version" = "0.0.0" ]; then
+              echo "$dir has no release yet."
+              continue
+            fi
+            tag="$dir/v$version"
+            if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
+              echo "$tag already exists."
+              continue
+            fi
+            awk '/^## /{c++} c==1' "$dir/CHANGELOG.md" > /tmp/notes.md
+            git tag -a "$tag" -m "Publish $dir@$version"
+            git push origin "$tag"
+            gh release create "$tag" --title "$tag" --notes-file /tmp/notes.md
+          done

@@ -1,0 +1,30 @@
+name: Changeset Checks
+
+# A PR that touches a package must carry a changeset, otherwise it merges with no recorded bump and
+# the release workflow has nothing to do. README-only PRs are exempt and start no run.
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+    paths:
+      - "packages/**"
+      - ".changeset/**"
+      - "!**/README.md"
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: git fetch origin ${{ github.event.pull_request.base.ref }} --depth=1
+      - run: pnpm exec changeset status --since=origin/${{ github.event.pull_request.base.ref }}

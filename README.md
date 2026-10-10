@@ -6,8 +6,8 @@ backing store is a deployment decision.
 
 | Language | Directory | Module / package | Status |
 | --- | --- | --- | --- |
-| Go | [`go/`](go) | `github.com/zenius-one/cachestore/go` | implemented |
-| TypeScript | `ts/` | `@zenius-one/cachestore` | planned |
+| Go | [`packages/cachestore-go`](packages/cachestore-go) | `github.com/zenius-one/cachestore/packages/cachestore-go` | implemented |
+| TypeScript | `packages/cachestore-ts` | `@zenius-one/cachestore` | planned |
 
 The contract every implementation follows is [`SPEC.md`](SPEC.md). Implementations differ in
 idiom, not in behaviour: a service moving between languages keeps its caching semantics.
@@ -26,17 +26,31 @@ between replicas", never "wrong" and never "unavailable".
 
 ## Layout and releases
 
-One top-level directory per language, each independently versioned and released; nothing outside
-a language directory may be imported by another. Go tags are `go/vX.Y.Z` (the Go toolchain's
-convention for a module in a subdirectory); other languages follow their own registry's
-convention with the language prefix, e.g. `ts/vX.Y.Z`.
+A pnpm + Turborepo + Changesets monorepo, same shape as iam-360: one package per language under
+`packages/`, each independently versioned and released.
 
-CI runs per language and only when that language's directory changes. Markdown-only changes start
-no workflow.
+```
+packages/cachestore-go/    Go module; its package.json is a version-tracking shim whose scripts
+                           (build, lint, check-types, test) call the Go toolchain so Turborepo
+                           runs it like any package
+.changeset/                pending changesets and config
+.github/workflows/         ci, changeset-checks, release
+```
+
+- **Develop:** `pnpm install`, then `pnpm turbo run build lint check-types test`.
+- **Change a package:** `pnpm changeset` (a README-only change needs none).
+- **Release:** merging to `main` runs `release.yml`: `changeset version` bumps and writes the
+  changelog, then every Go module whose committed version has no tag gets
+  `packages/<dir>/vX.Y.Z` and a GitHub release. Re-running the workflow recovers a failed run.
+  The tag is prefixed with the module's directory because that is how the Go toolchain resolves a
+  module that lives in a subdirectory.
+- **CI** ignores markdown-only changes.
 
 ## Adding a language
 
-1. Create `<lang>/` with the idiomatic layout for that ecosystem.
+1. Create `packages/cachestore-<lang>/` with the idiomatic layout, and a `package.json` whose
+   `build`, `lint`, `check-types` and `test` scripts run that ecosystem's tooling.
 2. Implement the interface and the three stores to [`SPEC.md`](SPEC.md), including the conformance
    cases listed there.
-3. Add its row above and a path-filtered workflow under `.github/workflows/`.
+3. Add its row above and, if it publishes somewhere other than a git tag, its publish step to
+   `release.yml`.
