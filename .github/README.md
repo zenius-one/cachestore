@@ -4,7 +4,7 @@ Changesets decides what changed, one workflow publishes it.
 
 | Workflow | Runs on | Does |
 | --- | --- | --- |
-| `ci.yml` | PRs and `main`, except markdown-only changes | `turbo run build lint check-types test` |
+| `ci.yml` | PRs only, except markdown-only changes | `turbo run build lint check-types test` |
 | `changeset-checks.yml` | PRs touching `packages/**` or `.changeset/**`, except READMEs | requires a changeset; checks the changeset ignore list and that no Go module shim was deleted or regressed |
 | `publish-packages.yml` | pushes to `main` touching `.changeset/**` or the publish configs; manual | version, then publish npm packages (GitHub Packages) and tag + release Go modules |
 
@@ -16,7 +16,7 @@ Turborepo can run its scripts. `publish-packages.yml`:
 
 1. `changeset version` consumes pending changesets and commits the bump to `main` (`[skip ci]`).
 2. For each bumped module listed in `publish-go-packages.config.json`, a matrix job builds and
-   vets it with `GOWORK=off` (as a consumer sees it), tags `packages/<dir>/vX.Y.Z` and creates a
+   vets and tests it with `GOWORK=off` (as a consumer sees it), tags `packages/<dir>/vX.Y.Z` and creates a
    GitHub release from the changelog section with GoReleaser.
 
 The tag is prefixed with the module's directory because that is how the Go toolchain resolves a

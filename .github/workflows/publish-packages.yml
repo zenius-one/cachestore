@@ -318,11 +318,12 @@ jobs:
           go-version-file: ${{ matrix.target.dir }}/go.mod
           cache-dependency-path: ${{ matrix.target.dir }}/go.sum
 
-      - name: Build and vet ${{ matrix.target.module }}
+      - name: Build, vet and test ${{ matrix.target.module }}
         working-directory: ${{ matrix.target.dir }}
         run: |
           go build ./...
           go vet ./...
+          go test ./...
 
       # Idempotent: guards a rerun where a prior attempt tagged and pushed
       # successfully but a later step (GoReleaser) then failed — retagging
