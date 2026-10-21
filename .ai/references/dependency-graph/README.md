@@ -12,7 +12,8 @@ to every implementation, with matching conformance tests.
 ```
 SPEC.md
   |-- packages/cachestore-go          (Go core: interface, MemoryStore, Fallback, JSON helpers)
-  |     `-- packages/cachestore-go/redis   (Go: RedisStore + New; requires the core module)
+  |     |-- packages/cachestore-go/redis      (Go: RedisStore + New; requires the core module)
+  |     `-- packages/cachestore-go/resilient  (Go: Bounded/Logged/New/Prober wrappers; requires the core module)
   `-- packages/cachestore-ts          (planned)
 ```
 
@@ -22,9 +23,10 @@ SPEC.md
 | --- | --- | --- |
 | core | `packages/cachestore-go` | nothing (no third-party dependencies, deliberately) |
 | redis | `packages/cachestore-go/redis` | core, `github.com/redis/go-redis/v9` |
+| resilient | `packages/cachestore-go/resilient` | core only (no third-party dependencies) |
 
 - A dependency edge means: change the upstream first, release it, pin the new version downstream.
-- The root `go.work` resolves both modules locally. `GOWORK=off` is how a consumer sees them and
+- The root `go.work` resolves all modules locally. `GOWORK=off` is how a consumer sees them and
   how CI builds before tagging; it needs the required version to exist as a tag.
 - The core module must stay free of third-party dependencies: that is why Redis is a separate
   module. A change that adds a dependency to core is wrong, whatever the reason.
@@ -41,6 +43,7 @@ published to npm) so Changesets can bump it and Turborepo can run its scripts.
 | --- | --- | --- |
 | `cachestore-go` | core | listed in `.github/publish-go-packages.config.json` and bumped by a changeset |
 | `cachestore-go-redis` | redis | listed in `.github/publish-go-packages.config.json` and bumped by a changeset |
+| `cachestore-go-resilient` | resilient | listed in `.github/publish-go-packages.config.json` and bumped by a changeset |
 
 Tags are `packages/<dir>/vX.Y.Z` (`packages/cachestore-go/redis/vX.Y.Z` for the nested module):
 the Go toolchain resolves a module in a subdirectory by its directory-prefixed tag.

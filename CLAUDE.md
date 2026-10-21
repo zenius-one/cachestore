@@ -14,6 +14,8 @@ packages/cachestore-go/         Go core module: interface, MemoryStore, Fallback
                                 No third-party dependencies, deliberately.
 packages/cachestore-go/redis/   Go module: RedisStore and New. Separate so a service that never
                                 uses Redis never pulls a Redis client.
+packages/cachestore-go/resilient/ Go module: Bounded/Logged/New/Prober wrappers (timeouts, rate-limited error
+                                logging, memory fallback hooks). Core dependency only.
 .github/                        workflows, release scripts, publish configs, templates
 .ai/                            skills and references (the source of truth for process)
 ```
