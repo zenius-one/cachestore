@@ -1,18 +1,18 @@
 # cachestore-go/resilient
 
-Wrappers that make a [`CacheStore`](../README.md) degrade quickly and visibly when its backend
-(normally Redis) is slow or down. No third-party dependencies; requires only the core module.
+Wrappers that make a [`CacheStore`](../README.md) degrade quickly and visibly when its backend (normally Redis) is slow or down. No third-party dependencies; requires only the core module.
 
-| Function | What it does |
-| --- | --- |
-| `Bounded(store, timeout)` | each operation gets its own deadline (the caller's context still wins if shorter) |
-| `Logged(store, name, log, every)` | logs the errors a `Fallback` swallows, at most one warning per `every`, counting the suppressed ones |
-| `New(primary, Options)` | `Logged(primary)` + in-memory secondary in a `cachestore.Fallback`, with log lines and `OnDegraded` / `OnRecovered` hooks |
-| `NewProber(fb, ...)` | `Active()` / `Probe()` for callers that skip the cache while degraded and still need to notice recovery |
+| Function                          | What it does                                                                                                              |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `Bounded(store, timeout)`         | each operation gets its own deadline (the caller's context still wins if shorter)                                         |
+| `Logged(store, name, log, every)` | logs the errors a `Fallback` swallows, at most one warning per `every`, counting the suppressed ones                      |
+| `New(primary, Options)`           | `Logged(primary)` + in-memory secondary in a `cachestore.Fallback`, with log lines and `OnDegraded` / `OnRecovered` hooks |
+| `NewProber(fb, ...)`              | `Active()` / `Probe()` for callers that skip the cache while degraded and still need to notice recovery                   |
 
 ```go
 fb := resilient.New(redisStore, resilient.Options{
-    Name: "redis", Log: resilient.Logger{Warnf: log.Warnf, Infof: log.Infof},
+    Name: "redis",
+    Log: resilient.Logger{Warnf: log.Warnf, Infof: log.Infof},
     OnDegraded:  func(error) { breakerGauge.Set(1) },
     OnRecovered: func() { breakerGauge.Set(0) },
 })
