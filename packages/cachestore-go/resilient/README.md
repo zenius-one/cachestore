@@ -3,7 +3,7 @@
 Wrappers that make a [`CacheStore`](../README.md) degrade quickly and visibly when its backend
 (normally Redis) is slow or down. No third-party dependencies; requires only the core module.
 
-| | |
+| Function | What it does |
 | --- | --- |
 | `Bounded(store, timeout)` | each operation gets its own deadline (the caller's context still wins if shorter) |
 | `Logged(store, name, log, every)` | logs the errors a `Fallback` swallows, at most one warning per `every`, counting the suppressed ones |
